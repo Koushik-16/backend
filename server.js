@@ -6,7 +6,10 @@ const app = express();
 require('dotenv').config();
 const port = 3001; // Or any other port you prefer
 const { google } = require('googleapis');
-const { error } = require('autoprefixer/lib/utils');
+const geneticAlgorithm = require('./genetic');
+
+
+
 app.use(cors({
     origin: 'http://localhost:3000',
     optionsSuccessStatus: 200 
@@ -26,7 +29,15 @@ app.post('/',  async(req, res) => {
   
   
    const r =  await callApi(data , n);
-    console.log(r);
+  const [path , distance] =   geneticAlgorithm(r , n * 10 ,n * 20 , 4, 0.8 , 0.2 );
+  const bestpath = [];
+  for(let i= 0 ;i < n ; i++){
+    bestpath.push(data[path[i]]);
+  }
+
+  
+   res.json({bestpath , distance});
+
   
    
    
@@ -40,24 +51,30 @@ app.post('/',  async(req, res) => {
 });
 
  async function callApi(data , n) {
-  let graph = [];
+  let graph = Array.from(Array(n), () => new Array(n));
   for(let i = 0 ; i < n ; i++) {
    for(let j = 0; j < n ; j++) {
-     graph[i] = [];
-     if(i !== j) {
+     
+     if(i !== j && j > i) {
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=${data[i].lat},${data[i].lng}&destinations=${data[j].lat},${data[j].lng}&key=${apikey}`;
        await axios.get(url)
-    .then(response => {
-    graph[i][j] =  response.data.rows[0].elements[0].distance.text;
-
+    .then(async (response) => {
+     const dis =  response.data.rows[0].elements[0].distance.text;
+     graph[i][j] = parseInt(dis.replace(/\D/g, ''), 10);
+    
     }).catch(error => {
       console.error(error);
       throw new Error('Error fetching distance data');
     })  ;
-  }else graph[i][j] = 0;
+  }else if(i ===j ) graph[i][j] = 0;
+
+  else {
+    graph[i][j] = graph[j][i];
+  }
 
    }
  }
+//  console.log(graph);
 return graph;
 }
 
